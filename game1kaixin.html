@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<title>午夜后宫 · 守夜（开心）</title>
+
+<style>
+* {
+    margin: 0; padding: 0; box-sizing: border-box;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: 'Courier New', monospace;
+    color: #fff;
+}
+
+#game {
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ===== 顶部状态栏（粉色系） ===== */
+#status {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: rgba(20,0,10,0.85);
+    border-bottom: 1px solid #553;
+    z-index: 10;
+    flex-shrink: 0;
+}
+#clock {
+    font-size: 26px;
+    letter-spacing: 4px;
+    color: #ff66aa;
+    font-weight: bold;
+}
+#power-bar, #fear-bar {
+    width: 120px;
+    height: 12px;
+    border: 1px solid #555;
+    background: #111;
+    border-radius: 2px;
+    overflow: hidden;
+}
+#power-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #00ff00, #ffff00, #ff3300);
+    transition: width 0.3s;
+}
+#fear-fill {
+    height: 100%;
+    width: 0%;
+    background: #ff66aa;
+    transition: width 0.3s;
+}
+.stat-label {
+    font-size: 11px;
+    color: #aa8888;
+    margin-bottom: 2px;
+}
+
+/* ===== 监控画面 ===== */
+#monitor {
+    flex: 1;
+    position: relative;
+    background: #000;
+    overflow: hidden;
+}
+#monitor-bg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.animal {
+    position: absolute;
+    max-width: 35%;
+    max-height: 45%;
+    transition: transform 0.2s ease, filter 0.2s ease;
+    filter: brightness(1);
+    pointer-events: none;
+    transform: translateZ(0);
+    will-change: transform, filter;
+}
+.animal.attacking {
+    filter: brightness(1.5) hue-rotate(-20deg) saturate(1.5);
+    animation: shake 0.08s infinite;
+}
+.animal.warning {
+    filter: brightness(1.3) hue-rotate(-10deg);
+}
+@keyframes shake {
+    0%   { transform: translate(0,0) scale(var(--s,1)) translateZ(0); }
+    25%  { transform: translate(2px,-1px) scale(var(--s,1)) translateZ(0); }
+    50%  { transform: translate(-1px,2px) scale(var(--s,1)) translateZ(0); }
+    75%  { transform: translate(-2px,-1px) scale(var(--s,1)) translateZ(0); }
+    100% { transform: translate(0,0) scale(var(--s,1)) translateZ(0); }
+}
+
+/* ===== 手电筒 ===== */
+#flashlight {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* ===== 面具 ===== */
+#mask {
+    position: absolute;
+    inset: 0;
+    background: sepia(0.4) saturate(1.2) hue-rotate(15deg);
+    mix-blend-mode: multiply;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 6;
+}
+
+/* ===== 提示信息 ===== */
+#message {
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.75);
+    color: #ff66aa;
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    letter-spacing: 2px;
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+}
+#message.show { opacity: 1; }
+
+/* ===== 警告叠加层 ===== */
+#warning-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 7;
+    transition: background 0.5s;
+}
+#warning-overlay.warning { background: rgba(255,0,100,0.12); }
+#warning-overlay.danger  { background: rgba(255,0,100,0.30); }
+
+/* ===== 监控闪烁（劳力士偷窃） ===== */
+#monitor.flicker { animation: flicker 0.1s infinite; }
+@keyframes flicker {
+    0%,100% { opacity: 1; }
+    50%     { opacity: 0.3; }
+}
+#monitor.blackout { background: #000 !important; }
+#monitor.blackout #monitor-bg { opacity: 0.05; }
+
+/* ===== 摄像头按钮 ===== */
+#cameras {
+    position: absolute;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.cam-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+    background: rgba(20,0,10,0.65);
+    border: 1px solid #665;
+    color: #caa;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+}
+.cam-btn.active {
+    background: #ff66aa !important;
+    border-color: #ff99cc !important;
+    color: #fff !important;
+}
+
+/* ===== 控制面板 ===== */
+#controls {
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(20,10,15,0.95);
+    border-top: 1px solid #443;
+    padding: 8px 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+.ctrl-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #665;
+    color: #ddd;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    transition: all 0.2s;
+    min-width: 70px;
+    text-align: center;
+}
+.ctrl-btn:hover { background: rgba(255,255,255,0.12); }
+.ctrl-btn.active {
+    background: #ff66aa !important;
+    border-color: #ff99cc !important;
+    color: #fff !important;
+}
+
+/* ===== 突脸 ===== */
+#jumpscare {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    flex-direction: column;
+}
+#jumpscare-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+}
+#jumpscare-text {
+    position: absolute;
+    bottom: 15%;
+    font-size: 32px;
+    color: #ff0000;
+    text-shadow: 0 0 20px #000;
+    font-weight: bold;
+    text-align: center;
+    padding: 0 20px;
+}
+
+/* ===== 胜利 ===== */
+#victory {
+    position: fixed;
+    inset: 0;
+    background: rgba(20,0,10,0.95);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    z-index: 9999;
+}
+#victory h1 {
+    font-size: 44px;
+    color: #ff66aa;
+    margin-bottom: 16px;
+    text-shadow: 0 0 30px #ff66aa;
+}
+#victory p {
+    font-size: 18px;
+    color: #ccc;
+    margin-bottom: 24px;
+}
+#victory button {
+    padding: 12px 36px;
+    font-size: 16px;
+    background: #cc3366;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+}
+#victory button:hover { background: #ee5588; }
+</style>
+</head>
+
+<body>
+
+<div id="game">
+    <!-- 顶部状态 -->
+    <div id="status">
+        <div>
+            <div id="clock">00:00</div>
+            <div style="font-size:11px;color:#a88696;">午夜守夜 · 开心 · 第一夜</div>
+        </div>
+        <div>
+            <div class="stat-label">电量</div>
+            <div id="power-bar"><div id="power-fill"></div></div>
+        </div>
+        <div>
+            <div class="stat-label">惊吓</div>
+            <div id="fear-bar"><div id="fear-fill"></div></div>
+        </div>
+    </div>
+
+    <!-- 监控画面 -->
+    <div id="monitor">
+        <img id="monitor-bg" src="image/kaixinwoshi.png" />
+        <canvas id="flashlight"></canvas>
+        <div id="mask"></div>
+        <div id="warning-overlay"></div>
+        <div id="animals"></div>
+        <div id="message"></div>
+
+        <!-- 摄像头按钮 -->
+        <div id="cameras">
+            <button class="cam-btn" data-cam="1">客厅</button>
+            <button class="cam-btn" data-cam="2">走廊</button>
+            <button class="cam-btn" data-cam="3">阳台</button>
+            <button class="cam-btn active" data-cam="4">开心卧室</button>
+            <button class="cam-btn" data-cam="5">次卧</button>
+            <button class="cam-btn" data-cam="6">厨房</button>
+            <button class="cam-btn" data-cam="7">文文的房间</button>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div id="controls">
+        <button class="ctrl-btn" id="btn-door-left">左门(A)</button>
+        <button class="ctrl-btn" id="btn-door-right">右门(D)</button>
+        <button class="ctrl-btn" id="btn-blind">遮光帘(S)</button>
+        <button class="ctrl-btn" id="btn-flash">手电筒(F)</button>
+        <button class="ctrl-btn" id="btn-whistle">鸟哨(W)</button>
+        <button class="ctrl-btn" id="btn-mask">面具(M)</button>
+        <button class="ctrl-btn" id="btn-egg">蛋黄护体(E)</button>
+    </div>
+</div>
+
+<!-- 突脸 -->
+<div id="jumpscare">
+    <img id="jumpscare-img" src="" alt="jumpscare" />
+    <div id="jumpscare-text"></div>
+</div>
+
+<!-- 胜利 -->
+<div id="victory">
+    <h1>清晨 6:00</h1>
+    <p>你活下来了。</p>
+    <button onclick="goBack()">返回夜晚选择</button>
+</div>
+
+<script>
+/* ==================== 音频系统 ==================== */
+const bgm = new Audio('music/yinyue.mp3');
+bgm.loop = true;
+bgm.volume = 0.4;
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playJumpscareSound() {
+    try {
+        const now = audioCtx.currentTime;
+        const osc1 = audioCtx.createOscillator();
+        const g1 = audioCtx.createGain();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(80, now);
+        osc1.frequency.exponentialRampToValueAtTime(40, now + 0.5);
+        g1.gain.setValueAtTime(0.5, now);
+        g1.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+        osc1.connect(g1).connect(audioCtx.destination);
+        osc1.start(now); osc1.stop(now + 0.5);
+
+        const osc2 = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(2000, now);
+        osc2.frequency.exponentialRampToValueAtTime(4000, now + 0.4);
+        g2.gain.setValueAtTime(0.25, now);
+        g2.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc2.connect(g2).connect(audioCtx.destination);
+        osc2.start(now); osc2.stop(now + 0.4);
+
+        const bufSize = Math.floor(audioCtx.sampleRate * 0.3);
+        const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buf;
+        const ng = audioCtx.createGain();
+        ng.gain.value = 0.15;
+        noise.connect(ng).connect(audioCtx.destination);
+        noise.start(now); noise.stop(now + 0.3);
+    } catch (e) {}
+}
+
+function playWhistle() {
+    try {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(3000, now);
+        osc.frequency.exponentialRampToValueAtTime(8000, now + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(3000, now + 0.3);
+        g.gain.setValueAtTime(0.25, now);
+        g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(now); osc.stop(now + 0.3);
+    } catch (e) {}
+}
+
+/* ==================== 游戏状态（开心版差异化）==================== */
+const TOTAL_SECONDS = 360;
+let startTime  = Date.now();
+let power      = 100;
+let fear       = 60;            // ✅ 开心初始惊吓更高
+let currentCam = 4;            // ✅ 开心默认在开心卧室
+let gameOver   = false;
+let flashlightOn = false;
+let blackout   = false;
+
+/* ==================== 蛋黄护体 ==================== */
+let eggShield  = false;
+let eggCooldown = 0;            // 冷却帧数（30 秒 = 300 帧）
+
+function activateEggShield() {
+    if (eggCooldown > 0) return;     // 冷却中
+    eggShield = true;
+    eggCooldown = 300;                // 30 秒冷却
+    safeShowMessage('🛡️ 蛋黄护体已激活！', 2500);
+    setTimeout(function() {
+        eggShield = false;
+        safeShowMessage('蛋黄护体消失了...', 2000);
+    }, 5000);                          // 持续 5 秒
+}
+
+/* ==================== 汩汩 ==================== */
+const gugu = {
+    path: [2, 1], camPos: 2, animState: 'idle', timer: 0, moveInterval: 250
+};
+
+/* ==================== 劳力士 ==================== */
+let rolexStealing  = false;
+let rolexTimer     = 0;
+let rolexCooldown  = 0;
+
+/* ==================== 动物数据 ==================== */
+const animals = [
+    { id: 'gg',     src: 'image/gg.png',     name: '汩汩',   hostile: true,  night: 1 },
+    { id: 'huang',  src: 'image/huang.png',  name: '蛋黄',   hostile: false, night: 1 },
+    { id: 'yun',    src: 'image/yun.png',    name: '云朵',   hostile: false, night: 1 },
+    { id: 'rolex',  src: 'image/rolex.png',  name: '劳力士', hostile: true,  night: 1 },
+    { id: 'pp',     src: 'image/pp.png',     name: '皮皮',   hostile: true,  night: 2 },
+    { id: 'pt',     src: 'image/pt.png',     name: '葡萄',   hostile: true,  night: 2 },
+    { id: 'dd',     src: 'image/dd.png',     name: '豆豆',   hostile: true,  night: 2 },
+    { id: 'bai',    src: 'image/bai.png',    name: '蛋白',   hostile: true,  night: 3 },
+    { id: 'ban',    src: 'image/ban.png',    name: '小斑',   hostile: true,  night: 3 }
+];
+
+const currentNight = 1;
+const activeAnimals = animals.filter(a => a.night <= currentNight);
+
+const camPositions = {
+    1: { gg:[30,40] },
+    3: { yun:[70,60] },
+    4: { huang:[40,60] },
+    6: { rolex:[35,40] },
+    7: {}
+};
+
+const camBgMap = {
+    1: 'ketin', 2: 'zoulan', 3: 'yangtai',
+    4: 'kaixinwoshi', 5: 'ciwo', 6: 'chufan', 7: 'wenwen'
+};
+
+const camName = {
+    1: '客厅', 2: '走廊', 3: '阳台',
+    4: '开心卧室', 5: '次卧', 6: '厨房', 7: '文文的房间'
+};
+
+/* ==================== DOM ==================== */
+const clockEl    = document.getElementById('clock');
+const powerFill  = document.getElementById('power-fill');
+const fearFill   = document.getElementById('fear-fill');
+const monitorBg  = document.getElementById('monitor-bg');
+const animalsEl   = document.getElementById('animals');
+const camBtns    = document.querySelectorAll('.cam-btn');
+const canvas     = document.getElementById('flashlight');
+const ctxC        = canvas.getContext('2d');
+const maskEl     = document.getElementById('mask');
+const jumpscareEl= document.getElementById('jumpscare');
+const jImg       = document.getElementById('jumpscare-img');
+const jText      = document.getElementById('jumpscare-text');
+const victoryEl  = document.getElementById('victory');
+const messageEl  = document.getElementById('message');
+const monitorEl  = document.getElementById('monitor');
+const warnOverlay= document.getElementById('warning-overlay');
+
+/* ==================== 提示信息（防抖）==================== */
+let msgLock = false;
+let msgTimer = null;
+
+function safeShowMessage(text, duration) {
+    if (msgLock) return;
+    msgLock = true;
+    messageEl.textContent = text;
+    messageEl.classList.add('show');
+    if (msgTimer) clearTimeout(msgTimer);
+    msgTimer = setTimeout(function() {
+        messageEl.classList.remove('show');
+        msgLock = false;
+    }, duration || 2500);
+}
+
+/* ==================== 时间系统 ==================== */
+function updateClock() {
+    if (gameOver) return;
+    const elapsed = (Date.now() - startTime) / 1000;
+    const progress = Math.min(elapsed / TOTAL_SECONDS, 1);
+    const totalMins = progress * 360;
+    const hours  = Math.floor(totalMins / 60);
+    const mins   = Math.floor(totalMins % 60);
+    clockEl.textContent = String(hours).padStart(2,'0') + ':' + String(mins).padStart(2,'0');
+    if (elapsed >= TOTAL_SECONDS) win();
+}
+setInterval(updateClock, 1000);
+
+/* ==================== 监控切换 ==================== */
+function switchCam(cam) {
+    currentCam = cam;
+    monitorBg.src = 'image/' + camBgMap[cam] + '.png';
+    animalsEl.innerHTML = '';
+    monitorEl.classList.remove('blackout','flicker');
+    warnOverlay.className = '';
+
+    const pos = camPositions[cam] || {};
+    activeAnimals.forEach(function(a) {
+        a.el = null;
+        if (pos[a.id]) {
+            var img = document.createElement('img');
+            img.className = 'animal';
+            img.src = a.src;
+            img.style.left = pos[a.id][0] + '%';
+            img.style.top  = pos[a.id][1] + '%';
+            animalsEl.appendChild(img);
+            a.el = img;
+        }
+    });
+
+    camBtns.forEach(function(b) {
+        b.classList.toggle('active', parseInt(b.dataset.cam) === cam);
+    });
+
+    if (cam === 7) {
+        flashlightOn = false;
+        document.getElementById('btn-flash').classList.remove('active');
+    }
+}
+
+camBtns.forEach(function(btn) {
+    btn.onclick = function() { switchCam(parseInt(btn.dataset.cam)); };
+});
+
+/* ==================== 汩汩 AI ==================== */
+function updateGugu() {
+    gugu.timer++;
+    if (gugu.timer >= gugu.moveInterval) {
+        gugu.timer = 0;
+        if (gugu.animState === 'idle') {
+            gugu.pathIndex = 0;
+            gugu.camPos = gugu.path[gugu.pathIndex];
+            gugu.animState = 'walking';
+            if (gugu.camPos === currentCam) {
+                safeShowMessage('汩汩在走廊里移动...', 2000);
+            }
+        } else if (gugu.animState === 'walking') {
+            gugu.pathIndex = Math.min(gugu.pathIndex + 1, gugu.path.length - 1);
+            gugu.camPos = gugu.path[gugu.pathIndex];
+            if (gugu.camPos === 1) {
+                gugu.animState = 'warning';
+                warnOverlay.className = 'warning';
+                if (currentCam === 1) {
+                    safeShowMessage('⚠ 汩汩出现在客厅！', 2500);
+                }
+            }
+        } else if (gugu.animState === 'attacking') {
+            // 已经在 attacking，等待倒计时
+        }
+    }
+
+    // 2 秒后检查是否被阻止
+    activeAnimals.forEach(function(a) {
+        if (a.id !== 'gg' || !a.el) return;
+        a.el.classList.remove('warning','attacking');
+        if (gugu.animState === 'warning')  a.el.classList.add('warning');
+        if (gugu.animState === 'attacking') a.el.classList.add('attacking');
+    });
+}
+
+// 汩汩进入 attacking 后的检查（延迟执行）
+function scheduleGuguAttack() {
+    if (gameOver) return;
+    if (gugu.animState !== 'attacking') return;
+
+    if (gugu.camPos === currentCam && gugu.camPos === 1) {
+        if (document.getElementById('btn-door-left').classList.contains('active')) {
+            gugu.animState = 'idle';
+            gugu.camPos = 2;
+            warnOverlay.className = '';
+            safeShowMessage('汩汩撞到了门...', 2000);
+        } else {
+            jumpscareKill({ src: 'image/gg.png', name: '汩汩' });
+        }
+    } else {
+        gugu.animState = 'idle';
+        gugu.camPos = 2;
+        warnOverlay.className = '';
+    }
+}
+
+function startGuguSequence() {
+    // warning → attacking 过渡
+    if (gugu.animState === 'warning') {
+        gugu.animState = 'attacking';
+        warnOverlay.className = 'danger';
+        if (currentCam === 1) {
+            safeShowMessage('‼ 汩汩正在靠近卧室门口！', 2000);
+        }
+        setTimeout(scheduleGuguAttack, 2000);
+    }
+}
+
+// 每 25 秒检查是否需要推进汩汩
+setInterval(function() {
+    if (gameOver) return;
+    gugu.timer++;
+    if (gugu.timer >= gugu.moveInterval) {
+        gugu.timer = 0;
+        if (gugu.animState === 'idle') {
+            gugu.camPos = 2; // 走廊
+            gugu.animState = 'warning';
+            warnOverlay.className = 'warning';
+            if (currentCam === 2) {
+                safeShowMessage('⚠ 汩汩出现在走廊！', 2500);
+            }
+            setTimeout(function() {
+                if (gameOver) return;
+                gugu.animState = 'attacking';
+                warnOverlay.className = 'danger';
+                if (currentCam === 1) {
+                    safeShowMessage('‼ 汩汩正在靠近卧室门口！', 2000);
+                }
+                setTimeout(function() {
+                    if (gameOver) return;
+                    if (gugu.animState !== 'attacking') return;
+                    if (currentCam === 1 && !document.getElementById('btn-door-left').classList.contains('active')) {
+                        jumpscareKill({ src: 'image/gg.png', name: '汩汩' });
+                    } else {
+                        gugu.animState = 'idle';
+                        gugu.camPos = 2;
+                        warnOverlay.className = '';
+                        if (currentCam === 1) {
+                            safeShowMessage('汩汩撞到了门...', 2000);
+                        }
+                    }
+                }, 2000);
+            }, 3000);
+        }
+    }
+}, 25000);
+
+/* ==================== 劳力士 AI ==================== */
+function updateRolex() {
+    if (rolexCooldown > 0) { rolexCooldown--; return; }
+    if (rolexStealing) {
+        rolexTimer++;
+        if (rolexTimer >= 30) {
+            monitorEl.classList.remove('flicker');
+            monitorEl.classList.add('blackout');
+            blackout = true;
+            safeShowMessage('💀 劳力士偷走了监控信号！', 4000);
+        }
+        if (rolexTimer >= 60) {
+            monitorEl.classList.remove('blackout','flicker');
+            blackout = false;
+            rolexStealing = false;
+            rolexCooldown = 80;
+            safeShowMessage('监控信号恢复了', 2000);
+        }
+    } else {
+        if (Math.random() < 0.003) {
+            rolexStealing = true;
+            rolexTimer = 0;
+            safeShowMessage('🔧 劳力士正在靠近监控！', 3000);
+            monitorEl.classList.add('flicker');
+        }
+    }
+}
+
+function scareRolex() {
+    if (!rolexStealing) return;
+    rolexStealing = false;
+    rolexCooldown = 100;
+    monitorEl.classList.remove('blackout','flicker');
+    blackout = false;
+    safeShowMessage('劳力士被鸟哨声吓跑了！', 2500);
+}
+
+function scareGugu() {
+    if (gugu.animState === 'warning' || gugu.animState === 'attacking') {
+        gugu.animState = 'idle';
+        gugu.camPos = 2;
+        gugu.timer = 0;
+        warnOverlay.className = '';
+        safeShowMessage('汩汩被鸟哨声吓退了！', 2500);
+    }
+}
+
+/* ==================== 动物动作 ==================== */
+function updateAnimals() {
+    activeAnimals.forEach(function(a) {
+        if (!a.el) return;
+        var s = 0.9 + Math.random() * 0.2;
+        a.el.style.setProperty('--s', s);
+        a.el.style.transform = 'scale(' + s + ') translateZ(0)';
+    });
+}
+
+/* ==================== 手电筒 ==================== */
+function resizeCanvas() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight - 166;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+document.getElementById('monitor').addEventListener('mousemove', function(e) {
+    if (!flashlightOn) return;
+    var x = e.clientX;
+    var y = e.clientY - 56;
+    ctxC.clearRect(0, 0, canvas.width, canvas.height);
+    var grad = ctxC.createRadialGradient(x, y, 0, x, y, 120);
+    grad.addColorStop(0, 'rgba(255,255,255,0.45)');
+    grad.addColorStop(1, 'transparent');
+    ctxC.fillStyle = grad;
+    ctxC.fillRect(0, 0, canvas.width, canvas.height);
+});
+
+document.getElementById('btn-flash').onclick = function() {
+    flashlightOn = !flashlightOn;
+    this.classList.toggle('active', flashlightOn);
+    if (!flashlightOn) ctxC.clearRect(0, 0, canvas.width, canvas.height);
+    power = Math.max(0, power - 0.5);
+};
+
+/* ==================== 鸟哨 ==================== */
+document.getElementById('btn-whistle').onclick = function() {
+    this.classList.add('active');
+    playWhistle();
+    power = Math.max(0, power - 2);
+    scareRolex();
+    scareGugu();
+    var self = this;
+    setTimeout(function() { self.classList.remove('active'); }, 300);
+};
+
+/* ==================== 面具 ==================== */
+document.getElementById('btn-mask').onclick = function() {
+    var isOn = maskEl.style.opacity === '1';
+    maskEl.style.opacity = isOn ? '0' : '1';
+    this.classList.toggle('active', !isOn);
+    power = Math.max(0, power - 1);
+};
+
+/* ==================== 蛋黄护体 ==================== */
+document.getElementById('btn-egg').onclick = function() {
+    activateEggShield();
+    power = Math.max(0, power - 1);
+};
+
+/* ==================== 门 / 遮光帘 ==================== */
+document.getElementById('btn-door-left').onclick = function() {
+    this.classList.toggle('active');
+    power = Math.max(0, power - 3);
+};
+document.getElementById('btn-door-right').onclick = function() {
+    this.classList.toggle('active');
+    power = Math.max(0, power - 3);
+};
+document.getElementById('btn-blind').onclick = function() {
+    this.classList.toggle('active');
+    power = Math.max(0, power - 2);
+};
+
+/* ==================== 突脸（含蛋黄护体免疫）==================== */
+function jumpscareKill(animal) {
+    if (gameOver) return;
+    // ✅ 蛋黄护体免疫一次
+    if (eggShield) {
+        safeShowMessage('蛋黄护体挡住了攻击！', 2000);
+        eggShield = false;
+        return;
+    }
+    gameOver = true;
+    bgm.pause();
+    playJumpscareSound();
+    jImg.src = animal.src;
+    jText.textContent = animal.name + '抓住了你！';
+    jumpscareEl.style.display = 'flex';
+    setTimeout(function() {
+        jumpscareEl.style.display = 'none';
+        goBack();
+    }, 3000);
+}
+
+/* ==================== 胜利 ==================== */
+function win() {
+    if (gameOver) return;
+    gameOver = true;
+    bgm.pause();
+    victoryEl.style.display = 'flex';
+}
+
+function goBack() {
+    window.location.href = 'night.html';
+}
+
+/* ==================== ★ 唯一游戏主循环 ★ ==================== */
+setInterval(function() {
+    if (gameOver) return;
+
+    // ✅ 统一电量消耗（每帧 0.015）
+    if (!blackout) {
+        power = Math.max(0, power - 0.015);
+    }
+
+    // ✅ 开心版惊吓上涨更快
+    fear = Math.min(100, fear + 0.08);
+
+    powerFill.style.width = power + '%';
+    fearFill.style.width  = fear + '%';
+
+    if (power < 20 && power > 18) {
+        safeShowMessage('⚡ 电量过低！', 2000);
+    }
+
+    if (power <= 0) {
+        document.getElementById('btn-door-left').classList.remove('active');
+        document.getElementById('btn-door-right').classList.remove('active');
+        document.getElementById('btn-blind').classList.remove('active');
+    }
+
+    if (power <= 0 || fear >= 100) {
+        var h = activeAnimals.filter(function(a) { return a.hostile; });
+        if (h.length) {
+            jumpscareKill(h[Math.floor(Math.random() * h.length)]);
+        } else {
+            jumpscareKill({ src: 'image/gg.png', name: '黑暗' });
+        }
+        return;
+    }
+
+    // 劳力士 AI
+    updateRolex();
+
+    // 友方提示
+    if (Math.random() < 0.00005 && !msgLock) {
+        if (currentCam === 4) {
+            safeShowMessage('蛋黄似乎在警告你什么...', 3000);
+        } else if (currentCam === 3) {
+            safeShowMessage('云朵在天空中盘旋守护...', 3000);
+        }
+    }
+
+    // 极低概率随机突脸
+    if (Math.random() < 0.0001 &&
+        gugu.camPos === 1 &&
+        gugu.animState === 'attacking' &&
+        currentCam === 1 &&
+        !document.getElementById('btn-door-left').classList.contains('active')) {
+        jumpscareKill({ src: 'image/gg.png', name: '汩汩' });
+    }
+
+    // 蛋黄护体冷却
+    if (eggCooldown > 0) eggCooldown--;
+
+}, 100);
+
+/* ==================== 动物强制动起来 ==================== */
+setInterval(updateAnimals, 200);
+
+/* ==================== 键盘快捷键 ==================== */
+document.addEventListener('keydown', function(e) {
+    if (gameOver) return;
+    switch(e.key) {
+        case '1': switchCam(1); break;
+        case '2': switchCam(2); break;
+        case '3': switchCam(3); break;
+        case '4': switchCam(4); break;
+        case '5': switchCam(5); break;
+        case '6': switchCam(6); break;
+        case '7': switchCam(7); break;
+        case 'a': case 'A': document.getElementById('btn-door-left').onclick();  break;
+        case 'd': case 'D': document.getElementById('btn-door-right').onclick(); break;
+        case 's': case 'S': document.getElementById('btn-blind').onclick();     break;
+        case 'f': case 'F': document.getElementById('btn-flash').onclick();     break;
+        case 'w': case 'W': document.getElementById('btn-whistle').onclick();   break;
+        case 'm': case 'M': document.getElementById('btn-mask').onclick();      break;
+        case 'e': case 'E': document.getElementById('btn-egg').onclick();       break;
+    }
+});
+
+/* ==================== 启动 ==================== */
+window.onload = function() {
+    bgm.play().catch(function() {});
+    switchCam(4); // ✅ 开心默认在开心卧室
+};
+</script>
+
+</body>
+</html>

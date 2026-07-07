@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<title>汩汩的午夜后宫 · 角色选择</title>
+
+<style>
+/* ============================================================
+           全局重置（和主菜单一致）
+           ============================================================ */
+* {
+    margin:0;
+    padding:0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width:100%;
+    height:100%;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    background: #0b0e14;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================================
+           背景
+           ============================================================ */
+#bg {
+    position: fixed;
+    inset:0;
+    background-image: url('image/beijin.png');
+    background-size: cover;
+    background-position: center;
+    z-index: 0;
+}
+
+#bg::after {
+    content: '';
+    position: absolute;
+    inset:0;
+    background: rgba(10, 14, 26, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+/* ============================================================
+           主容器
+           ============================================================ */
+#main {
+    position: relative;
+    z-index: 1;
+    width:100%;
+    height:100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 30px;
+    text-align: center;
+}
+
+/* ============================================================
+           标题
+           ============================================================ */
+.page-title {
+    font-size: 36px;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    letter-spacing: 8px;
+    margin-bottom: 6px;
+}
+
+.page-subtitle {
+    font-size: 15px;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 6px;
+    border-top:1px solid rgba(255, 255, 255, 0.12);
+    padding-top: 12px;
+    margin-bottom: 40px;
+}
+
+/* ============================================================
+           角色卡片区
+           ============================================================ */
+.role-cards {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 40px;
+}
+
+.role-card {
+    width: 260px;
+    padding: 30px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    cursor: pointer;
+    transition: all 0.4s ease;
+    text-align: center;
+}
+
+.role-card:hover {
+    border-color: rgba(255, 51, 51, 0.4);
+    background: rgba(255, 51, 51, 0.06);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(255, 0, 0, 0.15);
+}
+
+.role-card.selected {
+    border-color: #ff3333;
+    background: rgba(255, 51, 51, 0.1);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.2);
+}
+
+.role-avatar {
+    font-size: 56px;
+    margin-bottom: 12px;
+    line-height: 1;
+}
+
+.role-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 4px;
+    margin-bottom: 4px;
+}
+
+.role-relation {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.35);
+    letter-spacing: 2px;
+    margin-bottom: 14px;
+}
+
+.role-tags {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.tag {
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.tag.red {
+    border-color: rgba(255, 51, 51, 0.25);
+    color: rgba(255, 100, 100, 0.7);
+    background: rgba(255, 51, 51, 0.05);
+}
+
+.tag.blue {
+    border-color: rgba(100, 150, 255, 0.2);
+    color: rgba(130, 170, 255, 0.7);
+    background: rgba(100, 150, 255, 0.05);
+}
+
+.role-desc {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 1px;
+    line-height: 1.6;
+}
+
+/* ============================================================
+           底部按钮
+           ============================================================ */
+.bottom-bar {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 12px 32px;
+    border-radius: 40px;
+    font-size: 15px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-back {
+    background: rgba(255, 255, 255, 0.04);
+    border:1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-back:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-confirm {
+    background: rgba(255, 51, 51, 0.12);
+    border:1px solid rgba(255, 51, 51, 0.3);
+    color: #ff6666;
+}
+
+.btn-confirm:hover {
+    background: rgba(255, 51, 51, 0.22);
+    border-color: #ff3333;
+}
+
+.btn-confirm:disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+}
+
+/* ============================================================
+           当前选择提示
+           ============================================================ */
+#selection-info {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    z-index: 10;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.25);
+    letter-spacing: 2px;
+    text-align: right;
+}
+
+#selection-info span {
+    color: #ff3333;
+    font-weight: 700;
+}
+
+/* ============================================================
+           响应式
+           ============================================================ */
+@media (max-width: 600px) {
+    .page-title { font-size: 28px; letter-spacing: 6px; }
+    .page-subtitle { font-size: 13px; }
+    .role-card { width: 220px; padding: 24px 18px; }
+    .role-avatar { font-size: 44px; }
+}
+
+@media (max-width: 400px) {
+    .role-cards { gap: 16px; }
+    .role-card { width: 100%; max-width: 280px; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="bg"></div>
+
+<div id="main">
+    <div class="page-title">角色选择</div>
+    <div class="page-subtitle">选择你的守夜者</div>
+
+    <div class="role-cards">
+        <!-- 文 -->
+        <div class="role-card" id="card-wen" onclick="selectRole('wen')">
+            <div class="role-avatar">🧍</div>
+            <div class="role-name">文</div>
+            <div class="role-relation">哥哥 · 守护者</div>
+            <div class="role-tags">
+                <span class="tag red">防御 +20%</span>
+                <span class="tag red">电力消耗 -10%</span>
+            </div>
+            <div class="role-desc">
+                沉稳可靠的哥哥。<br/>
+                关门速度更快，电力消耗更低。<br/>
+                适合新手玩家。
+            </div>
+        </div>
+
+        <!-- 开心 -->
+        <div class="role-card" id="card-kaixin" onclick="selectRole('kaixin')">
+            <div class="role-avatar">👧</div>
+            <div class="role-name">开心</div>
+            <div class="role-relation">妹妹 · 通灵者</div>
+            <div class="role-tags">
+                <span class="tag blue">通灵视觉</span>
+                <span class="tag blue">蛋黄护体</span>
+            </div>
+            <div class="role-desc">
+                感知敏锐的妹妹。<br/>
+                更容易看到鸟魂的提示。<br/>
+                手电筒持续时间更长，但惊吓值涨得更快。
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <button class="btn btn-back" onclick="goBack()">返回主菜单</button>
+        <button class="btn btn-confirm" id="btn-confirm" disabled onclick="confirmRole()">确认选择</button>
+    </div>
+</div>
+
+<div id="selection-info">
+    当前选择：<span id="current-role-name">未选择</span>
+</div>
+
+<script>
+/* ============================================================
+       音频系统（100% 照搬《云端之上》）
+       ============================================================ */
+let bgm = null;
+let soundEnabled = false;
+
+function initBGM() {
+    try {
+        bgm = new Audio('music/yinyue.mp3');
+        bgm.loop = true;
+        bgm.volume = 0.5;
+    } catch (e) {
+        console.warn('角色选择音乐初始化失败:', e);
+    }
+}
+
+function playBGM() {
+    if (!bgm) initBGM();
+    try {
+        if (bgm && bgm.paused) {
+            bgm.currentTime = 0;
+            bgm.play().catch(() => {});
+        }
+    } catch (e) {
+        console.warn('角色选择音乐播放失败:', e);
+    }
+}
+
+function stopBGM() {
+    try {
+        if (bgm && !bgm.paused) {
+            bgm.pause();
+            bgm.currentTime = 0;
+        }
+    } catch (e) {}
+}
+
+/* ============================================================
+       角色选择逻辑
+       ============================================================ */
+let selectedRole = null;
+
+function selectRole(role) {
+    selectedRole = role;
+
+    // 更新卡片状态
+    document.getElementById('card-wen').classList.remove('selected');
+    document.getElementById('card-kaixin').classList.remove('selected');
+
+    document.getElementById('card-' + role).classList.add('selected');
+
+    // 更新确认按钮
+    document.getElementById('btn-confirm').disabled = false;
+
+    // 更新提示
+    const nameMap = { wen: '文（哥哥）', kaixin: '开心（妹妹）' };
+    document.getElementById('current-role-name').textContent = nameMap[role];
+}
+
+function confirmRole() {
+    if (!selectedRole) return;
+
+    stopBGM();
+
+    // 跳转到夜晚选择页，带上角色参数
+    window.location.href = 'night.html?role=' + selectedRole;
+}
+
+function goBack() {
+    stopBGM();
+    window.location.href = 'index.html';
+}
+
+/* ============================================================
+       初始化
+       ============================================================ */
+initBGM();
+
+// 检查是否从游戏返回
+const params = new URLSearchParams(window.location.search);
+const fromGame = params.get('from');
+
+if (fromGame === 'game') {
+    // 从游戏返回，直接播放音乐
+    playBGM();
+} else {
+    // 正常进入，静音准备
+    initBGM();
+}
+
+// 点击画面开启声音（和主菜单一致）
+document.addEventListener('click', function initSound() {
+    if (!soundEnabled) {
+        playBGM();
+        soundEnabled = true;
+    }
+}, { once: false });
+</script>
+
+</body>
+</html>
+
